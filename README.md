@@ -147,10 +147,11 @@ All Python scripts accept `--help` for a full list of arguments.
 - **Atlas parcellation**: Schaefer-200 cortical + FSL cerebellar + Harvard-Oxford subcortical, combined into a single 258-region whole-brain parcellation.
 - **Group collapsing**: Cortical parcels are averaged within Yeo-7 networks; subcortical structures are bilaterally averaged; cerebellar lobules are mapped to 7 MDTB functional domains.
 - **Mixed models**: Linear mixed models (LMM) with random slopes and GAMMs (B-spline basis) are both estimated; the LMM random-slope variance is checked for identifiability.
-- **Permutation testing**: Group labels are permuted across subjects (preserving repeated-measures structure) to generate null distributions for all model terms.
-- **FDR correction**: Benjamini–Hochberg applied within each model × term combination (`per_model_term` scope by default).
+- **Permutation testing (LMM)**: Group labels are permuted across subjects (preserving repeated-measures structure) to generate null distributions for all model terms.
+- **Permutation testing (PLS)**: Behavioural scores are shuffled and the true per-mode singular value reflecting mode strength is compared against a null distribution of singular values.
+- **FDR correction (LMM)**: Benjamini–Hochberg applied within each model × term combination (`per_model_term` scope by default).
+- **ComBat harmonisation (PLS)**: Applied within each PLS CV fold (fit on train, applied to test) to prevent site-related data leakage.
 - **T3 subject IDs**: T3 QC spreadsheet IDs are truncated to 6 significant figures by Excel; `check_subjects.py` and `estimate_FC.py` include a rounding-based lookup to match them to full 12-digit folder names.
-- **ComBat harmonisation**: Applied within each PLS CV fold (fit on train, applied to test) to prevent site-related data leakage.
 
 ---
 
