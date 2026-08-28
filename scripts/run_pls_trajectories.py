@@ -1134,7 +1134,7 @@ def parse_args() -> argparse.Namespace:
         help="random_slopes.csv from run_growth_curves_with_random_slopes_behavioural.py.",
     )
     p.add_argument(
-        "--slopes-model-tag", type=str, default="M1_LMM",
+        "--slopes-model-tag", type=str, default="M2_LMM",
         help="Model tag to extract (e.g. M1_LMM, M2_LMM).",
     )
     p.add_argument(
