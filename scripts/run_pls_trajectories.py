@@ -157,6 +157,22 @@ def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+def _normalize_group_value(v: object) -> Optional[str]:
+    """Normalize a group label for comparison (e.g. 1, "1", "1.0" -> "1")."""
+    if v is None or (isinstance(v, float) and not np.isfinite(v)):
+        return None
+    s = str(v).strip()
+    if not s or s.lower() == "nan":
+        return None
+    try:
+        f = float(s)
+        if f.is_integer():
+            return str(int(f))
+        return str(f)
+    except ValueError:
+        return s
+
+
 def _dir_has_files(path: Path) -> bool:
     if not path.exists():
         return False
@@ -1269,7 +1285,11 @@ def main() -> None:
     if demo_csv_path is not None and Path(str(demo_csv_path)).exists():
         try:
             demo_df = pd.read_csv(demo_csv_path)
-            demo_df[opts.demo_subject_col] = demo_df[opts.demo_subject_col].astype(str)
+            # df.csv subject IDs are long numeric codes; the LMM slope
+            # pipelines truncate to the first 6 digits as the subject key.
+            demo_df[opts.demo_subject_col] = (
+                demo_df[opts.demo_subject_col].astype(str).str.strip().str[:6]
+            )
             print(f"Loaded demographics from {demo_csv_path} ({len(demo_df)} rows)")
         except Exception as e:
             print(f"Warning: could not load demographics CSV ({e})")
@@ -1372,9 +1392,10 @@ def main() -> None:
             if behav_group_col in df.columns:
                 keep_levels = [v.strip() for v in behav_group_keep_csv.split(",") if v.strip()]
                 if keep_levels:
-                    keep_set = {str(v) for v in keep_levels}
+                    keep_set = {_normalize_group_value(v) for v in keep_levels}
                     n_before_group = len(df)
-                    df = df[df[behav_group_col].astype(str).isin(keep_set)].reset_index(drop=True)
+                    group_norm = df[behav_group_col].map(_normalize_group_value)
+                    df = df[group_norm.isin(keep_set)].reset_index(drop=True)
                     print(f"  Group filter ({behav_group_col} in {sorted(keep_set)}): "
                           f"{n_before_group} -> {len(df)} subjects")
             else:
