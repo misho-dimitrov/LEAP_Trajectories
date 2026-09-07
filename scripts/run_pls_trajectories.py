@@ -1180,6 +1180,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--group-col", type=str, default="site")
     p.add_argument("--age-col", type=str, default="t1_ageyrs")
     p.add_argument("--sex-col", type=str, default="t1_sex")
+    p.add_argument(
+        "--behav-group-col", type=str, default="t1_group",
+        help="Demographics column used to restrict subjects by group (e.g. ASD vs TD).",
+    )
+    p.add_argument(
+        "--behav-group-keep", type=str, default="1,2",
+        help="Comma-separated allowed values for --behav-group-col.",
+    )
 
     p.add_argument("--qc-csv", type=Path, default=None)
     p.add_argument("--qc-subject-col", type=str, default="subject")
@@ -1344,7 +1352,7 @@ def main() -> None:
 
         if demo_df is not None:
             demo_cols = [opts.demo_subject_col]
-            for c in [opts.group_col, opts.age_col, opts.sex_col]:
+            for c in [opts.group_col, opts.age_col, opts.sex_col, opts.behav_group_col]:
                 if c and c in demo_df.columns and c not in demo_cols:
                     demo_cols.append(c)
             demo_sub = demo_df[list(dict.fromkeys(demo_cols))].copy()
@@ -1356,6 +1364,26 @@ def main() -> None:
             if opts.demo_subject_col != opts.subject_col and opts.demo_subject_col in df.columns:
                 df = df.drop(columns=[opts.demo_subject_col])
             df = df.reset_index(drop=True)
+
+        # Optional: restrict to selected behaviour-group levels (e.g. ASD-only / TD-only)
+        behav_group_col = str(getattr(opts, "behav_group_col", "") or "").strip()
+        behav_group_keep_csv = str(getattr(opts, "behav_group_keep", "") or "").strip()
+        if behav_group_col and behav_group_keep_csv:
+            if behav_group_col in df.columns:
+                keep_levels = [v.strip() for v in behav_group_keep_csv.split(",") if v.strip()]
+                if keep_levels:
+                    keep_set = {str(v) for v in keep_levels}
+                    n_before_group = len(df)
+                    df = df[df[behav_group_col].astype(str).isin(keep_set)].reset_index(drop=True)
+                    print(f"  Group filter ({behav_group_col} in {sorted(keep_set)}): "
+                          f"{n_before_group} -> {len(df)} subjects")
+            else:
+                print(f"  Warning: --behav-group-col '{behav_group_col}' not found after "
+                      "demographics merge; group filter not applied.")
+
+        if len(df) < 10:
+            print(f"  SKIP: too few subjects ({len(df)}) after merge/group filter.")
+            continue
 
         try:
             run_pls_for_model(

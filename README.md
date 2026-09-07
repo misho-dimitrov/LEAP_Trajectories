@@ -32,7 +32,11 @@ RS/                                    <- project root (this repo)
 │   ├── visualise_growth_curves_v3.py                        # Stage 6a: brain figures
 │   ├── visualise_growth_curves_v3_behavioural.py            # Stage 6b: behavioural figures
 │   ├── run_pls_trajectories.py        # Stage 7: PLS (brain–behaviour trajectory slopes)
-│   └── pls_moderation_followup_trajectories.R  # Stage 8: moderation follow-up (trajectory PLS)
+│   ├── pls_moderation_followup_trajectories.R  # Stage 8: moderation follow-up (trajectory PLS)
+│   ├── run_pls_A.py                   # Stage 9a (optional): cross-sectional PLS, Autism group only (wraps run_pls.py)
+│   ├── run_pls_NT.py                  # Stage 9b (optional): cross-sectional PLS, Neurotypical group only (wraps run_pls.py)
+│   ├── run_pls_trajectories_A.py      # Stage 9c (optional): longitudinal PLS, Autism group only (wraps run_pls_trajectories.py)
+│   └── run_pls_trajectories_NT.py     # Stage 9d (optional): longitudinal PLS, Neurotypical group only (wraps run_pls_trajectories.py)
 ├── Atlas/
 │   ├── Cerebellum-MNIfnirt-maxprob-thr25-2mm.nii.gz
 │   └── Cerebellum_MNIfnirt.xml
@@ -58,7 +62,7 @@ RS/                                    <- project root (this repo)
 
 ## Pipeline Overview
 
-The analysis runs in eight stages. Each stage depends on outputs from the previous one.
+The analysis runs in eight core stages, plus an optional Stage 9 follow-up. Each stage depends on outputs from the previous one.
 
 | Stage | Script | Produces |
 |-------|--------|----------|
@@ -73,6 +77,12 @@ The analysis runs in eight stages. Each stage depends on outputs from the previo
 | **6b** Behavioural figures | `visualise_growth_curves_v3_behavioural.py` | `reports/growth_curves_behavioural/*.png` |
 | **7** Longitudinal (trajectory-slope) brain-behaviour PLS | `run_pls_trajectories.py` | `reports/pls_trajectories/<model>/` |
 | **8** Longitudinal PLS moderation follow-up (R) | `pls_moderation_followup_trajectories.R` | `reports/pls_trajectories/<model>/moderation/` |
+| **9a** *(optional)* Autism-only cross-sectional PLS | `run_pls_A.py` | `reports/pls/A/<model>/` |
+| **9b** *(optional)* Neurotypical-only cross-sectional PLS | `run_pls_NT.py` | `reports/pls/NT/<model>/` |
+| **9c** *(optional)* Autism-only longitudinal PLS | `run_pls_trajectories_A.py` | `reports/pls_trajectories/A/<model>/` |
+| **9d** *(optional)* Neurotypical-only longitudinal PLS | `run_pls_trajectories_NT.py` | `reports/pls_trajectories/NT/<model>/` |
+
+Stage 9 is a conditional follow-up: only run it if a group × brain-score interaction term was significant in the Stage 4 and/or Stage 8 moderation results, to characterise which group (Autism vs Neurotypical) drives the association. Run 9a/9b if the significant interaction came from the cross-sectional (Stage 4) moderation, and 9c/9d if it came from the longitudinal (Stage 8) moderation — both pairs are thin wrappers that inject `--behav-group-keep` (`2` = Autism, `1` = Neurotypical) into `run_pls.py` / `run_pls_trajectories.py` respectively.
 
 ---
 
@@ -152,6 +162,14 @@ python scripts/run_pls_trajectories.py --n-proc 10 --overwrite
 
 # Stage 8 — moderation follow-up for the Stage 7 (longitudinal) PLS outputs (R)
 Rscript scripts/pls_moderation_followup_trajectories.R
+
+# Stage 9 — OPTIONAL: only run if a group × brain-score interaction was significant
+# in the Stage 4 and/or Stage 8 moderation results (reports/pls*/**/moderation_interactions.csv).
+# Re-runs the relevant PLS separately within each group.
+python scripts/run_pls_A.py --n-proc 10 --overwrite                # Autism-only       -> reports/pls/A/<model>/
+python scripts/run_pls_NT.py --n-proc 10 --overwrite               # Neurotypical-only -> reports/pls/NT/<model>/
+python scripts/run_pls_trajectories_A.py --n-proc 10 --overwrite   # Autism-only       -> reports/pls_trajectories/A/<model>/
+python scripts/run_pls_trajectories_NT.py --n-proc 10 --overwrite  # Neurotypical-only -> reports/pls_trajectories/NT/<model>/
 ```
 
 All Python scripts accept `--help` for a full list of arguments; the R moderation scripts accept `--key=value` arguments (see the comment header of each script for defaults, e.g. `--models`, `--pls-dir`, `--modes`).
