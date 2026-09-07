@@ -71,13 +71,11 @@ DISPLAY_NAMES: Dict[str, str] = {
     "prl_WS":              "PRL Win-Stay",
     "prl_LS":              "PRL Lose-Shift",
     # QoL / Adaptive
-    "whoqol_overall":      "WHOQoL Overall",
     "ashq_total":          "ASHQ Total",
     "tas_total":           "TAS Total",
     "tas_identify":        "TAS Identify",
     "tas_describe":        "TAS Describe",
     "tas_external":        "TAS External",
-    "vineland_abc":        "Vineland ABC",
 }
 
 REGION_ORDER: List[str] = [
@@ -89,9 +87,8 @@ REGION_ORDER: List[str] = [
     "rbs_total", "ssp_total",
     "prl_perE_prop", "prl_WS", "prl_LS",
     # QoL / Adaptive
-    "whoqol_overall", "ashq_total",
+    "ashq_total",
     "tas_total", "tas_identify", "tas_describe", "tas_external",
-    "vineland_abc",
 ]
 
 SECTION_LABELS = {

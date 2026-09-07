@@ -15,8 +15,6 @@ Supported models (--models):
   prl     – PRL perseverative errors / Win-Stay / Lose-Shift
   ashq    – ASHQ Total
   tas     – TAS Total
-  vabs    – Vineland ABC Standard Score
-  whoqol  – WHOQoL-Bref Overall QoL & General Health
 
 All models share the same brain slopes; only the behavioural columns differ.
 Results land in {outdir}/{model_name}/.
@@ -146,14 +144,6 @@ MODEL_CONFIGS: dict[str, dict] = {
     "tas": {
         "behav_vars": ["tas_identify", "tas_describe", "tas_external"],
         "label": "TAS subscales – identify / describe / external thinking",
-    },
-    "vabs": {
-        "behav_vars": ["vineland_abc"],
-        "label": "Vineland ABC Standard Score",
-    },
-    "whoqol": {
-        "behav_vars": ["whoqol_overall"],
-        "label": "WHOQoL-Bref Overall QoL & General Health",
     },
 }
 

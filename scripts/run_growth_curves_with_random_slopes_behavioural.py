@@ -13,10 +13,8 @@ Eleven behavioural variables (using whichever timepoints are available):
   - PRL perseverative errors proportion (T1/T2/T3)
   - PRL Win-Stay (T1/T2/T3)
   - PRL Lose-Shift (T1/T2/T3)
-  - WHOQoL-Bref Overall QoL / General Health – raw (T1/T3 only; no T2)
   - ASHQ Total (T1/T2/T3)
   - TAS Total (T1/T2/T3)
-  - Vineland ABC Standard Score (T1/T2/T3)
 
 Models
 ------
@@ -144,7 +142,7 @@ _MIN_SLOPE_VAR: float = 1e-6
 #               are simply not collected for that variable.
 #
 #  Note: SRS uses a different column name at T3 (t3_srs_rawscore_total
-#  instead of t{N}_srs_rawscore).  WHOQoL has no T2 column in df.csv.
+#  instead of t{N}_srs_rawscore).
 # ---------------------------------------------------------------------------
 
 BEHAVIOURAL_VARIABLES: List[Dict] = [
@@ -257,15 +255,6 @@ BEHAVIOURAL_VARIABLES: List[Dict] = [
         },
     },
     {
-        "name":  "whoqol_overall",
-        "label": "WHOQoL-Bref Overall QoL & General Health (raw)",
-        "tp_cols": {
-            "T1": "t1_whoqolbref_overall_quality_of_life_and_general_health_raw",
-            # T2 column not available in df.csv
-            "T3": "t3_whoqolbref_overall_quality_of_life_and_general_health_raw",
-        },
-    },
-    {
         "name":    "ashq_total",
         "label":   "ASHQ Total",
         "tp_cols": {
@@ -308,15 +297,6 @@ BEHAVIOURAL_VARIABLES: List[Dict] = [
             "T1": "t1_tas_external",
             "T2": "t2_tas_external",
             "T3": "t3_tas_external",
-        },
-    },
-    {
-        "name":    "vineland_abc",
-        "label":   "Vineland ABC Standard Score",
-        "tp_cols": {
-            "T1": "t1_vabsabcabc_standard",
-            "T2": "t2_vabsabcabc_standard",
-            "T3": "t3_vabsabcabc_standard",
         },
     },
 ]
