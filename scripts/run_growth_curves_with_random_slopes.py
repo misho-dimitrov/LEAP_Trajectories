@@ -438,7 +438,7 @@ def residualize_wdc_on_fd(wdc: pd.DataFrame) -> pd.DataFrame:
 def combat_harmonize_wdc(
     wdc: pd.DataFrame,
     demo: pd.DataFrame,
-    age_col: str = "t1_ageyrs",
+    age_cols: Optional[Dict[str, str]] = None,
     sex_col: str = "t1_sex",
     group_col: str = "t1_group",
     iq_col: str = "t1_fsiq",
@@ -446,9 +446,10 @@ def combat_harmonize_wdc(
 ) -> pd.DataFrame:
     """Apply ComBat harmonization to parcel-level wDC per timepoint.
 
-    Biological covariates (age, sex, group, IQ) and mean FD (if attached to
-    `wdc`) are included so that ComBat preserves variance associated with them
-    (mFD is regressed out afterwards in the residualisation step).
+    Biological covariates (age at that timepoint, sex, group, IQ) and mean FD
+    (if attached to `wdc`) are included so that ComBat preserves variance
+    associated with them (mFD is regressed out afterwards in the residualisation
+    step). `age_cols` maps timepoint label -> age column in `demo`.
     """
     try:
         from neuroHarmonize import harmonizationLearn
@@ -456,16 +457,22 @@ def combat_harmonize_wdc(
         LOG.warning("neuroHarmonize not installed – skipping ComBat.")
         return wdc
 
+    if age_cols is None:
+        age_cols = {"T1": "t1_ageyrs", "T2": "t2_ageyrs", "T3": "t3_ageyrs"}
+
     wdc = wdc.copy()
     # Build a subject-level demographics lookup
     demo_sub = demo[["subject"]].copy()
-    for col in (age_col, sex_col, group_col, iq_col):
+    for col in (*age_cols.values(), sex_col, group_col, iq_col):
         if col in demo.columns:
             demo_sub[col] = demo[col].values
     demo_sub["subject"] = demo_sub["subject"].astype(str).str.strip().str[:6]
     demo_sub = demo_sub.drop_duplicates(subset=["subject"])
 
-    age_map = dict(zip(demo_sub["subject"], pd.to_numeric(demo_sub.get(age_col, pd.Series(dtype=float)), errors="coerce"))) if age_col in demo_sub.columns else {}
+    age_maps = {
+        tp_label: dict(zip(demo_sub["subject"], pd.to_numeric(demo_sub[col], errors="coerce")))
+        for tp_label, col in age_cols.items() if col in demo_sub.columns
+    }
     if sex_col in demo_sub.columns:
         sex_codes = pd.Categorical(demo_sub[sex_col].astype(str)).codes.astype(float)
         sex_codes[sex_codes < 0] = np.nan
@@ -502,6 +509,7 @@ def combat_harmonize_wdc(
             s_sites = tp_df.loc[tp_df["subject"] == s, "site"].astype(str).unique()
             site_per_subj.append(s_sites[0] if len(s_sites) > 0 else "unknown")
 
+        age_map = age_maps.get(tp, {})
         cov = pd.DataFrame({"SITE": site_per_subj})
         if age_map:
             cov["AGE"] = [age_map.get(s, np.nan) for s in subj_order]
@@ -518,6 +526,22 @@ def combat_harmonize_wdc(
             if np.isfinite(fd_vals).any():
                 fd_vals[~np.isfinite(fd_vals)] = np.nanmedian(fd_vals)
                 cov["MFD"] = fd_vals
+
+        # neuroHarmonize cannot handle NaN covariates (-> "Singular matrix").
+        # Fit on subjects with complete covariates; the rest are dropped later
+        # in build_long_df (missing age/sex/group/IQ), so nothing is lost.
+        complete = cov.drop(columns="SITE").notna().all(axis=1).to_numpy()
+        if complete.sum() < 5:
+            LOG.info("%s: too few subjects with complete covariates (%d) for ComBat – skipping.",
+                     tp, int(complete.sum()))
+            continue
+        if not complete.all():
+            LOG.info("%s: ComBat fitted on %d/%d subjects with complete covariates.",
+                     tp, int(complete.sum()), len(complete))
+        cov = cov.loc[complete].reset_index(drop=True)
+        subj_order = [s for s, c in zip(subj_order, complete) if c]
+        x_arr = x_arr[complete]
+
         # Drop zero-variance features
         v = np.var(x_arr, axis=0)
         keep = np.isfinite(v) & (v > 0)

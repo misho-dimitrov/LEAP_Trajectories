@@ -538,6 +538,29 @@ def combat_harmonize_full(
     return x_arr
 
 
+def drop_rows_missing_covariates(
+    df: pd.DataFrame,
+    cols: list[Optional[str]],
+    subject_col: str,
+    outdir: Optional[Path] = None,
+) -> pd.DataFrame:
+    """Drop subjects with missing values in any covariate used for ComBat/residualisation.
+
+    ComBat (neuroHarmonize) and the OLS residualisation cannot handle missing
+    covariates, and partially adjusted subjects would be inconsistent with the rest.
+    """
+    present = [c for c in dict.fromkeys(cols) if c and c in df.columns]
+    if not present:
+        return df
+    bad = df[present].isna().any(axis=1).to_numpy()
+    if not bad.any():
+        return df
+    print(f"Dropping {int(bad.sum())}/{len(df)} subjects with missing covariates ({', '.join(present)}).")
+    if outdir is not None:
+        df.loc[bad, [subject_col, *present]].to_csv(outdir / "subjects_dropped_missing_covariates.csv", index=False)
+    return df.loc[~bad].reset_index(drop=True)
+
+
 def preprocess_imaging_full(
     df: pd.DataFrame,
     imaging_cols: list[str],
@@ -1041,6 +1064,19 @@ def _run_model(
             out_fd_col=fd_col_internal,
         )
         df = df.reset_index(drop=True)
+
+    # ComBat and residualisation need complete covariates
+    if bool(opts.use_combat) or bool(opts.use_fd_residualize):
+        df = drop_rows_missing_covariates(
+            df,
+            [
+                opts.age_col, opts.sex_col, opts.iq_col,
+                opts.behav_group_col if bool(opts.use_combat) else None,
+                fd_col_internal if bool(opts.use_fd_residualize) else None,
+            ],
+            opts.subject_col,
+            outdir,
+        )
 
     # Sign flips for conceptual alignment
     sign_flipped: list[str] = []

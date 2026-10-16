@@ -396,12 +396,13 @@ def combat_harmonize_full(
     age_col: str = "t1_ageyrs",
     sex_col: str = "t1_sex",
     group_col: str = "t1_group",
+    iq_col: str = "t1_fsiq",
     fd_col: Optional[str] = None,
 ) -> np.ndarray:
     """Apply ComBat harmonization on the full dataset.
 
-    Biological covariates (age, sex, group) and mean FD are included so that
-    ComBat preserves variance associated with them (mFD is regressed out
+    Biological covariates (age, sex, group, IQ) and mean FD are included so
+    that ComBat preserves variance associated with them (mFD is regressed out
     afterwards in the residualisation step).
     """
     try:
@@ -422,6 +423,8 @@ def combat_harmonize_full(
         grp_codes[grp_codes < 0] = np.nan
         if len(np.unique(grp_codes[np.isfinite(grp_codes)])) > 1:
             cov["GROUP"] = grp_codes
+    if iq_col and iq_col in df.columns:
+        cov["IQ"] = pd.to_numeric(df[iq_col], errors="coerce").to_numpy(dtype=float)
     if fd_col and fd_col in df.columns:
         fd = pd.to_numeric(df[fd_col], errors="coerce").to_numpy(dtype=float)
         # Median-impute missing mFD (covariate only) so ComBat does not fail on NaN
@@ -447,6 +450,29 @@ def combat_harmonize_full(
     return x_arr
 
 
+def drop_rows_missing_covariates(
+    df: pd.DataFrame,
+    cols: list[Optional[str]],
+    subject_col: str,
+    outdir: Optional[Path] = None,
+) -> pd.DataFrame:
+    """Drop subjects with missing values in any covariate used for ComBat/residualisation.
+
+    ComBat (neuroHarmonize) cannot handle missing covariates, and partially
+    adjusted subjects would be inconsistent with the rest.
+    """
+    present = [c for c in dict.fromkeys(cols) if c and c in df.columns]
+    if not present:
+        return df
+    bad = df[present].isna().any(axis=1).to_numpy()
+    if not bad.any():
+        return df
+    print(f"  Dropping {int(bad.sum())}/{len(df)} subjects with missing covariates ({', '.join(present)}).")
+    if outdir is not None:
+        df.loc[bad, [subject_col, *present]].to_csv(outdir / "subjects_dropped_missing_covariates.csv", index=False)
+    return df.loc[~bad].reset_index(drop=True)
+
+
 def preprocess_imaging_full(
     df: pd.DataFrame,
     imaging_cols: list[str],
@@ -456,6 +482,7 @@ def preprocess_imaging_full(
     age_col: str = "t1_ageyrs",
     sex_col: str = "t1_sex",
     group_col: str = "t1_group",
+    iq_col: str = "t1_fsiq",
 ) -> np.ndarray:
     """Full-sample imaging preprocessing: ComBat → FD residualize.
 
@@ -468,7 +495,7 @@ def preprocess_imaging_full(
     # ComBat harmonisation (first)
     if use_combat and site_col in df.columns:
         site = df[site_col].astype(str).to_numpy()
-        x = combat_harmonize_full(x, site, df, age_col=age_col, sex_col=sex_col, group_col=group_col, fd_col=fd_col)
+        x = combat_harmonize_full(x, site, df, age_col=age_col, sex_col=sex_col, group_col=group_col, iq_col=iq_col, fd_col=fd_col)
 
     # FD residualisation (after ComBat)
     if fd_col and fd_col in df.columns:
@@ -797,6 +824,21 @@ def run_pls_for_model(
             df = df.reset_index(drop=True)
             has_fd = True
 
+    # ComBat (site, age, sex, IQ, group) and FD residualisation need complete covariates
+    if bool(opts.use_combat) or has_fd:
+        df = drop_rows_missing_covariates(
+            df,
+            [
+                *(
+                    [opts.group_col, opts.age_col, opts.sex_col, opts.iq_col, opts.behav_group_col]
+                    if bool(opts.use_combat) else []
+                ),
+                fd_col_internal if has_fd else None,
+            ],
+            opts.subject_col,
+            outdir,
+        )
+
     variances, outliers, cor, redundancy = behav_diagnostics(
         df, behav_cols, outlier_z=opts.behav_outlier_z, red_thresh=opts.behav_redundancy_thresh,
     )
@@ -841,7 +883,8 @@ def run_pls_for_model(
         use_combat=bool(opts.use_combat),
         age_col=opts.age_col,
         sex_col=opts.sex_col,
-        group_col="",
+        group_col=opts.behav_group_col,
+        iq_col=opts.iq_col,
     )
 
     Y = df[behav_cols].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float)
@@ -1203,6 +1246,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--group-col", type=str, default="site")
     p.add_argument("--age-col", type=str, default="t1_ageyrs")
     p.add_argument("--sex-col", type=str, default="t1_sex")
+    p.add_argument("--iq-col", type=str, default="t1_fsiq")
     p.add_argument(
         "--behav-group-col", type=str, default="t1_group",
         help="Demographics column used to restrict subjects by group (e.g. ASD vs TD).",
@@ -1379,7 +1423,7 @@ def main() -> None:
 
         if demo_df is not None:
             demo_cols = [opts.demo_subject_col]
-            for c in [opts.group_col, opts.age_col, opts.sex_col, opts.behav_group_col]:
+            for c in [opts.group_col, opts.age_col, opts.sex_col, opts.iq_col, opts.behav_group_col]:
                 if c and c in demo_df.columns and c not in demo_cols:
                     demo_cols.append(c)
             demo_sub = demo_df[list(dict.fromkeys(demo_cols))].copy()
