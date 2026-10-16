@@ -57,9 +57,6 @@ scripts/run_prediction*.py
 scripts/run_prediction*.sh
 scripts/prediction_slurm.sh
 scripts/setup_conda_env.sh
-scripts/run_pls.py
-scripts/run_pls_A.py
-scripts/run_pls_NT.py
 scripts/run_pls_core_autistic*.py
 scripts/run_pls_prl*.py
 scripts/run_pls_sdq_self*.py

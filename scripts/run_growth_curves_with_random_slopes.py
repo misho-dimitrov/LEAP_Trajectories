@@ -442,11 +442,13 @@ def combat_harmonize_wdc(
     sex_col: str = "t1_sex",
     group_col: str = "t1_group",
     iq_col: str = "t1_fsiq",
+    fd_col: str = "__meanFD",
 ) -> pd.DataFrame:
     """Apply ComBat harmonization to parcel-level wDC per timepoint.
 
-    Biological covariates (age, sex, group) are included so that ComBat
-    preserves variance associated with them.
+    Biological covariates (age, sex, group, IQ) and mean FD (if attached to
+    `wdc`) are included so that ComBat preserves variance associated with them
+    (mFD is regressed out afterwards in the residualisation step).
     """
     try:
         from neuroHarmonize import harmonizationLearn
@@ -509,7 +511,13 @@ def combat_harmonize_wdc(
             cov["GROUP"] = [grp_map.get(s, np.nan) for s in subj_order]
         if iq_map:
             cov["IQ"] = [iq_map.get(s, np.nan) for s in subj_order]
-
+        if fd_col in tp_df.columns:
+            fd_map = tp_df.groupby("subject")[fd_col].mean()
+            fd_vals = np.array([fd_map.get(s, np.nan) for s in subj_order], dtype=float)
+            # Median-impute missing mFD (covariate only) so ComBat does not fail on NaN
+            if np.isfinite(fd_vals).any():
+                fd_vals[~np.isfinite(fd_vals)] = np.nanmedian(fd_vals)
+                cov["MFD"] = fd_vals
         # Drop zero-variance features
         v = np.var(x_arr, axis=0)
         keep = np.isfinite(v) & (v > 0)
@@ -1351,7 +1359,7 @@ def parse_args(argv: Optional[list] = None) -> argparse.Namespace:
     p.add_argument(
         "--use-fd-residualize",
         type=lambda x: str(x).lower() == "true", default=True,
-        help="Residualize wDC on mean FD before network averaging (default: True).",
+        help="Residualize wDC on mean FD after ComBat, before network averaging (default: True).",
     )
     p.add_argument(
         "--use-combat",
@@ -1412,7 +1420,8 @@ def main(argv: Optional[list] = None) -> None:
     wdc_raw = load_wdc(wdc_path)
     demo    = load_demographics(demo_path)
 
-    # 1b. FD residualization -------------------------------------------------
+    # 1b. Attach meanFD (used for residualization after ComBat) --------------
+    fd_attached = False
     if args.use_fd_residualize:
         try:
             qc_paths = {
@@ -1425,11 +1434,15 @@ def main(argv: Optional[list] = None) -> None:
             LOG.warning("Could not resolve QC paths – skipping FD residualization.")
         if qc_paths:
             wdc_raw = attach_fd_to_wdc(wdc_raw, qc_paths, fd_col=args.qc_fd_col)
-            wdc_raw = residualize_wdc_on_fd(wdc_raw)
+            fd_attached = True
 
-    # 1c. ComBat harmonization -----------------------------------------------
+    # 1c. ComBat harmonization (first) ---------------------------------------
     if args.use_combat:
         wdc_raw = combat_harmonize_wdc(wdc_raw, demo)
+
+    # 1d. FD residualization (after ComBat) ----------------------------------
+    if fd_attached:
+        wdc_raw = residualize_wdc_on_fd(wdc_raw)
 
     # 2. Collapse parcels to regions -----------------------------------------
     wdc_net = collapse_to_networks(

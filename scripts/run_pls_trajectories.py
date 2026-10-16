@@ -396,11 +396,13 @@ def combat_harmonize_full(
     age_col: str = "t1_ageyrs",
     sex_col: str = "t1_sex",
     group_col: str = "t1_group",
+    fd_col: Optional[str] = None,
 ) -> np.ndarray:
     """Apply ComBat harmonization on the full dataset.
 
-    Biological covariates (age, sex, group) are included so that
-    ComBat preserves variance associated with them.
+    Biological covariates (age, sex, group) and mean FD are included so that
+    ComBat preserves variance associated with them (mFD is regressed out
+    afterwards in the residualisation step).
     """
     try:
         from neuroHarmonize import harmonizationLearn
@@ -420,6 +422,11 @@ def combat_harmonize_full(
         grp_codes[grp_codes < 0] = np.nan
         if len(np.unique(grp_codes[np.isfinite(grp_codes)])) > 1:
             cov["GROUP"] = grp_codes
+    if fd_col and fd_col in df.columns:
+        fd = pd.to_numeric(df[fd_col], errors="coerce").to_numpy(dtype=float)
+        # Median-impute missing mFD (covariate only) so ComBat does not fail on NaN
+        fd[~np.isfinite(fd)] = np.nanmedian(fd) if np.isfinite(fd).any() else 0.0
+        cov["MFD"] = fd
 
     # Drop zero-variance features for ComBat
     v = np.var(x_arr, axis=0)
@@ -450,7 +457,7 @@ def preprocess_imaging_full(
     sex_col: str = "t1_sex",
     group_col: str = "t1_group",
 ) -> np.ndarray:
-    """Full-sample imaging preprocessing: FD residualize → ComBat.
+    """Full-sample imaging preprocessing: ComBat → FD residualize.
 
     No z-scoring (pyls handles normalization internally via cross-correlation).
     No PCA (wDC values are used directly).
@@ -458,15 +465,15 @@ def preprocess_imaging_full(
     x = df[imaging_cols].apply(pd.to_numeric, errors="coerce").to_numpy(float)
     x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
 
-    # FD residualisation
+    # ComBat harmonisation (first)
+    if use_combat and site_col in df.columns:
+        site = df[site_col].astype(str).to_numpy()
+        x = combat_harmonize_full(x, site, df, age_col=age_col, sex_col=sex_col, group_col=group_col, fd_col=fd_col)
+
+    # FD residualisation (after ComBat)
     if fd_col and fd_col in df.columns:
         fd = pd.to_numeric(df[fd_col], errors="coerce").to_numpy(float)
         x = residualize_features_on_fd_full(x, fd)
-
-    # ComBat harmonisation
-    if use_combat and site_col in df.columns:
-        site = df[site_col].astype(str).to_numpy()
-        x = combat_harmonize_full(x, site, df, age_col=age_col, sex_col=sex_col, group_col=group_col)
 
     return x
 

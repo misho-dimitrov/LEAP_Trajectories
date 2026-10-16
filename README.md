@@ -25,12 +25,12 @@ RS/                                    <- project root (this repo)
 │   ├── rs_paths.py                    # shared path helpers (imported by all scripts)
 │   ├── check_subjects.py              # Stage 1b: QC – subject presence + NIfTI checks
 │   ├── estimate_FC.py                 # Stage 2:  FC estimation + wDC computation
-│   ├── run_pls.py                     # Stage 3: PLS (brain wDC vs T1 behaviour, cross-sectional)
-│   ├── pls_moderation_followup.R      # Stage 4: moderation follow-up (cross-sectional PLS)
-│   ├── run_growth_curves_with_random_slopes.py           # Stage 5a: brain trajectories
-│   ├── run_growth_curves_with_random_slopes_behavioural.py  # Stage 5b: behavioural trajectories
-│   ├── visualise_growth_curves_v3.py                        # Stage 6a: brain figures
-│   ├── visualise_growth_curves_v3_behavioural.py            # Stage 6b: behavioural figures
+│   ├── run_growth_curves_with_random_slopes.py           # Stage 3a: brain trajectories
+│   ├── run_growth_curves_with_random_slopes_behavioural.py  # Stage 3b: behavioural trajectories
+│   ├── visualise_growth_curves_v3.py                        # Stage 4a: brain figures
+│   ├── visualise_growth_curves_v3_behavioural.py            # Stage 4b: behavioural figures
+│   ├── run_pls.py                     # Stage 5: PLS (brain wDC vs T1 behaviour, cross-sectional)
+│   ├── pls_moderation_followup.R      # Stage 6: moderation follow-up (cross-sectional PLS)
 │   ├── run_pls_trajectories.py        # Stage 7: PLS (brain–behaviour trajectory slopes)
 │   ├── pls_moderation_followup_trajectories.R  # Stage 8: moderation follow-up (trajectory PLS)
 │   ├── run_pls_A.py                   # Stage 9a (optional): cross-sectional PLS, Autism group only (wraps run_pls.py)
@@ -69,12 +69,12 @@ The analysis runs in eight core stages, plus an optional Stage 9 follow-up. Each
 | **1a** Behavioural EDA/QC (R) | `BehCheck.R` | `../Behaviour/df.csv` |
 | **1b** fMRI QC | `check_subjects.py` | `reports/*_presence.csv`, `*_nifti_qc.csv` |
 | **2**  FC estimation | `estimate_FC.py` | `reports/fc/master_wdc.csv` |
-| **3** Cross-sectional (T1) brain-behaviour PLS | `run_pls.py` | `reports/pls/<model>/` (`sdq`/`prl`/`autism`/`ashq`/`tas`) |
-| **4** Cross-sectional PLS moderation follow-up (R) | `pls_moderation_followup.R` | `reports/pls/<model>/moderation/` |
-| **5a** Brain trajectories | `run_growth_curves_with_random_slopes.py` | `reports/growth_curves/` |
-| **5b** Behavioural trajectories | `run_growth_curves_with_random_slopes_behavioural.py` | `reports/growth_curves_behavioural/` |
-| **6a** Brain figures | `visualise_growth_curves_v3.py` | `reports/growth_curves/*.png` |
-| **6b** Behavioural figures | `visualise_growth_curves_v3_behavioural.py` | `reports/growth_curves_behavioural/*.png` |
+| **3a** Brain trajectories | `run_growth_curves_with_random_slopes.py` | `reports/growth_curves/` |
+| **3b** Behavioural trajectories | `run_growth_curves_with_random_slopes_behavioural.py` | `reports/growth_curves_behavioural/` |
+| **4a** Brain figures | `visualise_growth_curves_v3.py` | `reports/growth_curves/*.png` |
+| **4b** Behavioural figures | `visualise_growth_curves_v3_behavioural.py` | `reports/growth_curves_behavioural/*.png` |
+| **5** Cross-sectional (T1) brain-behaviour PLS | `run_pls.py` | `reports/pls/<model>/` (`sdq`/`prl`/`autism`/`ashq`/`tas`) |
+| **6** Cross-sectional PLS moderation follow-up (R) | `pls_moderation_followup.R` | `reports/pls/<model>/moderation/` |
 | **7** Longitudinal (trajectory-slope) brain-behaviour PLS | `run_pls_trajectories.py` | `reports/pls_trajectories/<model>/` |
 | **8** Longitudinal PLS moderation follow-up (R) | `pls_moderation_followup_trajectories.R` | `reports/pls_trajectories/<model>/moderation/` |
 | **9a** *(optional)* Autism-only cross-sectional PLS | `run_pls_A.py` | `reports/pls/A/<model>/` |
@@ -82,7 +82,7 @@ The analysis runs in eight core stages, plus an optional Stage 9 follow-up. Each
 | **9c** *(optional)* Autism-only longitudinal PLS | `run_pls_trajectories_A.py` | `reports/pls_trajectories/A/<model>/` |
 | **9d** *(optional)* Neurotypical-only longitudinal PLS | `run_pls_trajectories_NT.py` | `reports/pls_trajectories/NT/<model>/` |
 
-Stage 9 is a conditional follow-up: only run it if a group × brain-score interaction term was significant in the Stage 4 and/or Stage 8 moderation results, to characterise which group (Autism vs Neurotypical) drives the association. Run 9a/9b if the significant interaction came from the cross-sectional (Stage 4) moderation, and 9c/9d if it came from the longitudinal (Stage 8) moderation — both pairs are thin wrappers that inject `--behav-group-keep` (`2` = Autism, `1` = Neurotypical) into `run_pls.py` / `run_pls_trajectories.py` respectively.
+Stage 9 is a conditional follow-up: only run it if a group × brain-score interaction term was significant in the Stage 6 and/or Stage 8 moderation results, to characterise which group (Autism vs Neurotypical) drives the association. Run 9a/9b if the significant interaction came from the cross-sectional (Stage 6) moderation, and 9c/9d if it came from the longitudinal (Stage 8) moderation — both pairs are thin wrappers that inject `--behav-group-keep` (`2` = Autism, `1` = Neurotypical) into `run_pls.py` / `run_pls_trajectories.py` respectively.
 
 ---
 
@@ -116,7 +116,7 @@ Open R (≥ 4.2) and run:
 install.packages(c("tidyverse", "readxl", "readr", "psych", "ggplot2", "ggpubr"))
 ```
 
-`ggplot2`/`ggpubr` are used by the PLS moderation follow-up scripts (Stages 4 and 8); both scripts will also auto-install them on first run if missing.
+`ggplot2`/`ggpubr` are used by the PLS moderation follow-up scripts (Stages 6 and 8); both scripts will also auto-install them on first run if missing.
 
 ### 4. Place input data
 
@@ -139,23 +139,23 @@ python scripts/check_subjects.py
 # Stage 2 — FC estimation (parallelised: adjust --n-jobs as needed)
 python scripts/estimate_FC.py --n-jobs 10
 
-# Stage 3 — cross-sectional (T1) brain–behaviour PLS, all questionnaires (parallelised: adjust --n-proc as needed)
-python scripts/run_pls.py --n-proc 10 --overwrite
-
-# Stage 4 — moderation follow-up for the Stage 3 (cross-sectional) PLS outputs (R)
-Rscript scripts/pls_moderation_followup.R
-
-# Stage 5a — brain growth curves (parallelised: adjust --n-jobs as needed; adjust --n-perms as needed)
+# Stage 3a — brain growth curves (parallelised: adjust --n-jobs as needed; adjust --n-perms as needed)
 python scripts/run_growth_curves_with_random_slopes.py --n-perms 1000 --n-jobs 10 
 
-# Stage 5b — behavioural growth curves (parallelised: adjust --n-jobs as needed; adjust --n-perms as needed)
+# Stage 3b — behavioural growth curves (parallelised: adjust --n-jobs as needed; adjust --n-perms as needed)
 python scripts/run_growth_curves_with_random_slopes_behavioural.py --n-perms 1000 --n-jobs 10 
 
-# Stage 6a — visualise brain results
+# Stage 4a — visualise brain results
 python scripts/visualise_growth_curves_v3.py
 
-# Stage 6b — visualise behavioural results
+# Stage 4b — visualise behavioural results
 python scripts/visualise_growth_curves_v3_behavioural.py
+
+# Stage 5 — cross-sectional (T1) brain–behaviour PLS, all questionnaires (parallelised: adjust --n-proc as needed)
+python scripts/run_pls.py --n-proc 10 --overwrite
+
+# Stage 6 — moderation follow-up for the Stage 5 (cross-sectional) PLS outputs (R)
+Rscript scripts/pls_moderation_followup.R
 
 # Stage 7 — PLS using brain–behaviour trajectory slopes, all questionnaires (parallelised: adjust --n-proc as needed)
 python scripts/run_pls_trajectories.py --n-proc 10 --overwrite
@@ -164,7 +164,7 @@ python scripts/run_pls_trajectories.py --n-proc 10 --overwrite
 Rscript scripts/pls_moderation_followup_trajectories.R
 
 # Stage 9 — OPTIONAL: only run if a group × brain-score interaction was significant
-# in the Stage 4 and/or Stage 8 moderation results (reports/pls*/**/moderation_interactions.csv).
+# in the Stage 6 and/or Stage 8 moderation results (reports/pls*/**/moderation_interactions.csv).
 # Re-runs the relevant PLS separately within each group.
 python scripts/run_pls_A.py --n-proc 10 --overwrite                # Autism-only       -> reports/pls/A/<model>/
 python scripts/run_pls_NT.py --n-proc 10 --overwrite               # Neurotypical-only -> reports/pls/NT/<model>/
@@ -181,11 +181,14 @@ All Python scripts accept `--help` for a full list of arguments; the R moderatio
 - **wDC metric**: Weighted degree centrality (sum of suprathreshold FC weights per parcl, r ≥ 0.25 by default) is used as a parcel-level connectivity summary rather than raw correlation matrices.
 - **Atlas parcellation**: Schaefer-200 cortical + FSL cerebellar + Harvard-Oxford subcortical, combined into a single 258-region whole-brain parcellation.
 - **Group collapsing**: Cortical parcels are averaged within Yeo-7 networks; subcortical structures are bilaterally averaged; cerebellar lobules are mapped to 7 MDTB functional domains.
-- **Mixed models**: Linear mixed models (LMM) with random slopes and GAMMs (B-spline basis) are both estimated; the LMM random-slope variance is checked for identifiability.
+- **Mixed growth models**: Linear mixed models (LMM) with random slopes and GAMMs (B-spline basis) are both estimated; the LMM random-slope variance is checked for identifiability.
+- **PLS method**: Behavioural PLS-SVD is fitted on the full sample, one model per questionnaire (`sdq`/`prl`/`autism`/`ashq`/`tas`).
+- **ComBat harmonisation and feature residualisation (LMM)**: Applied per timepoint to parcel-level wDC before network averaging. ComBat is applied first (site as batch; age, sex, group, IQ and mFD preserved as covariates); the harmonised wDC is then residualised on mFD within each timepoint × parcel.
+- **ComBat harmonisation and feature residualisation (PLS)**: Applied once on the full sample before fitting PLS. ComBat is applied first (age/sex/group[/IQ] and mFD preserved as covariates); the harmonised features are then residualised on mFD, age, sex and IQ, and behavioural variables are residualised on age, sex and IQ (no mFD). Cross-validation projects held-out subjects through the full-sample saliences rather than refitting ComBat per fold. For the longitudinal (trajectory-slope) PLS both steps are off by default, as the LMMs already account for site, sex, age and IQ.
 - **Permutation testing (LMM)**: Group labels are permuted across subjects (preserving repeated-measures structure) to generate null distributions for all model terms.
 - **Permutation testing (PLS)**: Behavioural scores are shuffled and the true per-mode singular value reflecting mode strength is compared against a null distribution of singular values.
 - **FDR correction (LMM)**: Benjamini–Hochberg applied within each model × term combination (`per_model_term` scope by default).
-- **ComBat harmonisation (PLS)**: Applied once on the full sample (age/sex/group[/IQ] preserved as biological covariates) before fitting PLS; cross-validation projects held-out subjects through the full-sample saliences rather than refitting ComBat per fold.
+- **FDR correction (PLS)**: Benjamini–Hochberg applied to the per-mode permutation p-values within each PLS model (`perm_pval_fdr`). In the moderation follow-up, FDR is applied across all interaction tests (`p_fdr_all`) and within each moderator family (`p_fdr_within_model`).
 - **T3 subject IDs**: T3 QC spreadsheet IDs are truncated to 6 significant figures by Excel; `check_subjects.py` and `estimate_FC.py` include a rounding-based lookup to match them to full 12-digit folder names.
 
 ---
