@@ -514,7 +514,7 @@ def combat_harmonize_full(
     if iq_col and iq_col in df.columns:
         cov["IQ"] = pd.to_numeric(df[iq_col], errors="coerce").to_numpy(dtype=float)
     if fd_col and fd_col in df.columns:
-        fd = pd.to_numeric(df[fd_col], errors="coerce").to_numpy(dtype=float)
+        fd = pd.to_numeric(df[fd_col], errors="coerce").to_numpy(dtype=float).copy()
         # Median-impute missing mFD (covariate only) so ComBat does not fail on NaN
         fd[~np.isfinite(fd)] = np.nanmedian(fd) if np.isfinite(fd).any() else 0.0
         cov["MFD"] = fd
